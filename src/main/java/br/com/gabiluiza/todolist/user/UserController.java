@@ -10,26 +10,46 @@ import org.springframework.web.bind.annotation.RestController;
 
 import at.favre.lib.crypto.bcrypt.BCrypt;
 
+/**
+TIPOS DE MODIFICADORES
+*public
+*private
+*protected  
+*/
+
 @RestController
 @RequestMapping("/users")
 public class UserController {
 
     @Autowired
     private IUserRepository userRepository;
-    
+
     @PostMapping("/")
     public ResponseEntity create(@RequestBody UserModel userModel) {
-        var userExists = this.userRepository.findByUsername(userModel.getUsername());
+        var user = this.userRepository.findByUsername(userModel.getUsername());
+
+        if(user != null) {
+            System.out.println("Usuário já existe");
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body("Usuário já existe");
+        } 
+
+        var passwordHashred = BCrypt.withDefaults().hashToString(12, userModel.getPassword().toCharArray());
+        userModel.setPassword(passwordHashred);
         
-        if(userExists != null) {
-            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body("Este username já existe");
-        }
-
-        var paswordHashed = BCrypt.withDefaults().hashToString(12, userModel.getPassword().toCharArray());
-
-        userModel.setPassword(paswordHashed);
-
-        var userCreated = this.userRepository.save(userModel);
+        var userCreated =  this.userRepository.save(userModel);
         return ResponseEntity.status(HttpStatus.CREATED).body(userCreated);
     }
 }
+
+/*
+ * Tipos de dados
+ * Spring (texto)
+ * Integer (Int - números inteiros)
+ * Double (números quebrados)
+ * Float 
+ * Char (caracteres)
+ * Date  (data)
+ * void (não receber nada)
+ */
+
+// getters e setters

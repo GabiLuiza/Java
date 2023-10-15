@@ -8,62 +8,63 @@ import org.springframework.stereotype.Component;
 import org.springframework.web.filter.OncePerRequestFilter;
 
 import at.favre.lib.crypto.bcrypt.BCrypt;
-import br.com.spinettiana.todolist.controllers.user.IUserRepository;
-import jakarta.servlet.Filter;
+import br.com.gabiluiza.todolist.user.iUserRepository;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
-import jakarta.servlet.ServletRequest;
-import jakarta.servlet.ServletResponse;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 
 @Component
-public class FilterTaskAuth extends OncePerRequestFilter{
-    @Autowired
-    private IUserRepository userRepository;
+public class FilterTaskAuth extends OncePerRequestFilter {
 
+    @Autowired
+    private iUserRepository userRepository;
 
     @Override
     protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain filterChain)
             throws ServletException, IOException {
 
-               var servletPath = request.getServletPath();
-
-               if (servletPath.startsWith("/tasks/")){
+                var servletPath = request.getServletPath(); 
                 
-                //capturando usuario e senha
-                var authorization = request.getHeader("Authorization");
-                var authEncoded = authorization.substring("Basic".length()).trim();
-                
-                byte[] authDecode = Base64.getDecoder().decode(authEncoded); 
-                var authString = new String(authDecode);
+                if(servletPath.startsWith("/tasks/")) {
+            
+                    // Pegar a autenticação (user e senha)
+                    var authorization = request.getHeader("Authorization");
+                    
+                    var authEncoded = authorization.substring("Basic".length()).trim();
 
-                String[] credentials = authString.split(":");
-                String username = credentials[0];
-                String password = credentials[1];
+                    byte[] authDecode = Base64.getDecoder().decode(authEncoded);
+                    
+                    var authString = new String(authDecode);
 
-                // validar usuario
-                var user = userRepository.findByUsername(username);
-                if(user == null){
-                    response.sendError(401, "Usuario sem autorização");
-                }else{
-                    // validar senha
-                    var passwordVerify = BCrypt.verifyer().verify(password.toCharArray(), user.getPassword());
+                    String[] credentials = authString.split(":");
+                    String username = credentials[0];
+                    String password = credentials[1];
 
-                    if(passwordVerify.verified){
-                        // Enviando o ID do usuário para a requisição
-                        request.setAttribute("idUser", user.getId());
+                    System.out.println("Authorization");
+                    System.out.println(username);
+                    System.out.println(password);
 
-                        filterChain.doFilter(request, response);
-                    }else{
-                        response.sendError(401, "usuário ou senha inválidos");
+                    // Validar user
+
+                    var user = this.userRepository.findByUsername(username);
+                    if(user == null) {
+                        response.sendError(401);
+                    } else {
+                        // Validar senha 
+
+                        var passwordVerify = BCrypt.verifyer().verify(password.toCharArray(), user.getPassword());
+                        if(passwordVerify.verified) {
+                            request.setAttribute("idUser", user.getId());
+                            filterChain.doFilter(request, response);
+                        } else {
+                            response.sendError(401);
+                        }
                     }
-
-                }
-            }else{
+                    } else {
+                    // Seguir em frente
                 filterChain.doFilter(request, response);
             }
-
+        
     }
-    
 }

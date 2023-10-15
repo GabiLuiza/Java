@@ -15,8 +15,7 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
-import br.com.spinettiana.todolist.utils.Utils;
-import jakarta.servlet.http.HttpServlet;
+import br.com.gabiluiza.todolist.utils.Utils;
 import jakarta.servlet.http.HttpServletRequest;
 
 @RestController
@@ -27,43 +26,69 @@ public class TaskController {
     private ITaskRepository taskRepository;
 
     @PostMapping("/")
-    public ResponseEntity create(@RequestBody TaskModel taskModel, HttpServletRequest request){
+    public ResponseEntity create(@RequestBody TaskModel taskModel, HttpServletRequest request) {
         var idUser = request.getAttribute("idUser");
         taskModel.setIdUser((UUID) idUser);
+        System.out.println("Chegou no Controller");
 
-        if(taskModel.getStartAt().isAfter(taskModel.getFinishAt())){
-            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body("A data de inicio deve ser menor que a data de término");
+        var currentDate = LocalDateTime.now();
+        if(currentDate.isAfter(taskModel.getStartAt()) || currentDate.isAfter(taskModel.getEndAt())) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body("A data de início/término deve ser maior do que a data atual.");
         }
 
+        if(taskModel.getStartAt().isAfter(taskModel.getEndAt())) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body("A data de início deve ser menor do que a de término.");
+        }
 
-        var taskCreated = this.taskRepository.save(taskModel);
-        return ResponseEntity.status(HttpStatus.CREATED).body(taskCreated);
+        var task = this.taskRepository.save(taskModel);
+        return ResponseEntity.status(HttpStatus.OK).body(task);
     }
 
     @GetMapping("/")
-    public List<TaskModel> list(HttpServletRequest request){
+    public List<TaskModel> list(HttpServletRequest request) {
         var idUser = request.getAttribute("idUser");
         var tasks = this.taskRepository.findByIdUser((UUID) idUser);
         return tasks;
     }
 
     @PutMapping("/{id}")
-    public ResponseEntity update(@RequestBody TaskModel taskModel, @PathVariable UUID id, HttpServletRequest request){
-        var task = this.taskRepository.findById(id).orElse(null);
-        var idUser = request.getAttribute("idUser");
+    public ResponseEntity update(@RequestBody TaskModel taskModel, @PathVariable UUID id, HttpServletRequest request) {
 
-        if(task == null){
-            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body("Tarefaz não localizada");
+        var task = this.taskRepository.findById(id).orElse(null);
+
+        if(task == null) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body("Tarefa não encontrada"); 
         }
 
-        if(!task.getIdUser().equals(idUser)){
-            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body("Usuário sem permissão para alterar essa tarefa");
+        var idUser = request.getAttribute("idUser");
+
+        if (task.getIdUser().equals(idUser)) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+            .body("Usuário não tem permissão para alterar essa tarefa"); 
+
         }
 
         Utils.copyNonNullProperties(taskModel, task);
         var taskUpdated = this.taskRepository.save(task);
-
         return ResponseEntity.ok().body(this.taskRepository.save(taskUpdated));
     }
-    
+
+    /* @DeleteMapping({"{id}"})
+    public ResponseEntity delete(TaskModel taskModel, HttpServletRequest request, @PathVariable UUID id){
+        var task = this.taskRepository.findById(id).orElse(null);
+        
+        if (task == null) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body("Tarefa não encontrada");
+        }
+
+        var idUser = request.getAttribute("idUser");
+
+        if (task.getIdUser().equals(idUser)) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body("Essa tarefa não pertence a você. Impossível deletar...");
+        }
+
+        this.taskRepository.delete(task);
+
+        return ResponseEntity.ok().body("Task deletada com sucesso!");
+    } */
 }
